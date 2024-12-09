@@ -133,25 +133,38 @@ M.runner = function(opts)
   opts.buf = x and x.buf or nil
 
   -- if buf doesnt exist
+  local cmd = format_cmd(opts.cmd)
+
   if x == nil then
+    opts.cmd = ""
     create(opts)
-  else
-    -- window isnt visible
-    if vim.fn.bufwinid(x.buf) == -1 then
-      M.display(opts)
+
+    while x == nil do
+      x = opts_to_id(opts.id)
     end
 
-    local cmd = format_cmd(opts.cmd)
-
-    if x.buf == api.nvim_get_current_buf() then
-      set_buf(g.buf_history[#g.buf_history - 1])
-      cmd = format_cmd(opts.cmd)
-      set_buf(x.buf)
-    end
-
-    local job_id = vim.b[x.buf].terminal_job_id
-    vim.api.nvim_chan_send(job_id, clear_cmd .. cmd .. " \n")
+    opts.first = true
+    opts.cmd = cmd
   end
+
+  -- window isnt visible
+  if vim.fn.bufwinid(x.buf) == -1 then
+    M.display(opts)
+  end
+
+  if x.buf == api.nvim_get_current_buf() then
+    set_buf(g.buf_history[#g.buf_history - 1])
+    cmd = format_cmd(opts.cmd)
+    set_buf(x.buf)
+  end
+
+  local job_id = vim.b[x.buf].terminal_job_id
+
+  if opts.kill ~= nil and not opts.first then
+    vim.api.nvim_chan_send(job_id, opts.kill .. "\r\n")
+  end
+
+  vim.api.nvim_chan_send(job_id, clear_cmd .. cmd .. "\r")
 end
 
 --------------------------- autocmds -------------------------------
